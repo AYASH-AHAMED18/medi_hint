@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MediHint Chatbot — Not a Diagnosis</title>
+
+<style>
+  :root {
+    --wa-green: #075e54;
+    --wa-bg: #efeae2;
+    --user-bubble: #dcf8c6;
+    --bot-bubble: #ffffff;
+    --text: #1f2933;
+    --muted: #667781;
+    --danger: #c0392b;
+    --danger-soft: #fdecea;
+    --line: #d1d7db;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #d9dbd5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color: var(--text);
+    padding: 20px;
+  }
+
+  .phone {
+    width: 430px;
+    max-width: 100%;
+    height: 680px;
+    background: var(--wa-bg);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #c7c7c7;
+  }
+
+  .chat-header {
+    height: 72px;
+    background: var(--wa-green);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    gap: 12px;
+  }
+
+  .logo-box {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    flex-shrink: 0;
+  }
+
+  .logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+  }
+
+  .header-info {
+    flex: 1;
+  }
+
+  .header-title {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .header-subtitle {
+    font-size: 12px;
+    color: #d8f3ee;
+    margin-top: 2px;
+  }
+
+  .chat-body {
+    flex: 1;
+    padding: 14px 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #efeae2;
+    position: relative;
+  }
+
+  .chat-body::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("medihint-logo.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 75%;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .message-row {
+    display: flex;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+  }
+
+  .message-row.user {
+    justify-content: flex-end;
+  }
+
+  .message-row.bot {
+    justify-content: flex-start;
+  }
+
+  .bubble {
+    max-width: 82%;
+    padding: 8px 10px 6px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    line-height: 1.45;
+    position: relative;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+    animation: pop 0.15s ease-out;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.98) translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .message-row.user .bubble {
+    background: var(--user-bubble);
+    border-top-right-radius: 2px;
+  }
+
+  .message-row.bot .bubble {
+    background: var(--bot-bubble);
+    border-top-left-radius: 2px;
+  }
+
+  .bubble.urgent {
+    background: var(--danger-soft);
+    border: 1px solid #efb4aa;
+  }
+
+  .tag {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+  }
+
+  .urgent .tag {
+    color: var(--danger);
+  }
+
+  .time {
+    display: block;
+    text-align: right;
+    font-size: 10px;
+    color: #839097;
+    margin-top: 4px;
+  }
+
+  .result-card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px;
+    margin-top: 7px;
+  }
+
+  .result-card.flagged {
+    border-color: #e57373;
+    background: #fffafa;
+  }
+
+  .result-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--wa-green);
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 5px;
+  }
+
+  .result-card.flagged .result-title {
+    color: var(--danger);
+  }
+
+  .confidence {
+    color: var(--muted);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .result-card p {
+    margin: 4px 0;
+    font-size: 12.5px;
+  }
+
+  .label {
+    font-weight: 700;
+  }
+
+  .chat-footer {
+    background: #f0f2f5;
+    padding: 10px;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    border-top: 1px solid #d8dde0;
+  }
+
+  .input-wrap {
+    flex: 1;
+    background: #fff;
+    border-radius: 22px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+  }
+
+  textarea {
+    width: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+    max-height: 90px;
+    min-height: 22px;
+    line-height: 1.4;
+  }
+
+  .send-btn,
+  .reset-btn {
+    border: none;
+    cursor: pointer;
+    height: 42px;
+    border-radius: 50%;
+    font-weight: 700;
+  }
+
+  .send-btn {
+    width: 42px;
+    background: var(--wa-green);
+    color: #fff;
+    font-size: 18px;
+  }
+
+  .send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .reset-btn {
+    width: 42px;
+    background: #ffffff;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    font-size: 16px;
+  }
+
+  .typing {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    background: #8a99a3;
+    border-radius: 50%;
+    animation: blink 1.2s infinite;
+  }
+
+  .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes blink {
+    0%, 80%, 100% {
+      opacity: 0.3;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+
+  .chat-body::-webkit-scrollbar {
+    width: 7px;
+  }
+
+  .chat-body::-webkit-scrollbar-thumb {
+    background: #bcc3c7;
+    border-radius: 8px;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="phone">
+
+  <div class="chat-header">
+    <div class="logo-box">
+      <img src="medihint-logo.png" alt="MediHint Logo" class="logo-img">
+    </div>
+
+    <div class="header-info">
+      <div class="header-title">Dr. MediHint</div>
+      <div class="header-subtitle">AI Symptom Assistant</div>
+    </div>
+  </div>
+
+  <div class="chat-body" id="chatBody"></div>
+
+  <div class="chat-footer">
+    <button class="reset-btn" id="resetBtn" title="Reset chat">↻</button>
+
+    <div class="input-wrap">
+      <textarea
+        id="symptomInput"
+        rows="1"
+        placeholder="Type your answer..."
+      ></textarea>
+    </div>
+
+    <button class="send-btn" id="sendBtn" title="Send">➤</button>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = "http://localhost:8000";
+
+  const chatBody = document.getElementById("chatBody");
+  const symptomInput = document.getElementById("symptomInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  let symptomVocabulary = [];
+
+  let patientName = "";
+  let patientAge = "";
+  let chatStep = "askName";
+
+  function getTime() {
+    const now = new Date();
+    return now.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  function scrollToBottom() {
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  function getFirstName(fullName) {
+    return fullName.trim().split(" ")[0];
+  }
+
+  function addMessage(content, sender = "bot", tag = "", urgent = false) {
+    const row = document.createElement("div");
+    row.className = `message-row ${sender}`;
+
+    const bubble = document.createElement("div");
+    bubble.className = `bubble ${urgent ? "urgent" : ""}`;
+
+    if (tag) {
+      const tagEl = document.createElement("span");
+      tagEl.className = "tag";
+      tagEl.textContent = tag;
+      bubble.appendChild(tagEl);
+    }
+
+    const body = document.createElement("div");
+    body.innerHTML = content;
+    bubble.appendChild(body);
+
+    const time = document.createElement("span");
+    time.className = "time";
+    time.textContent = getTime();
+    bubble.appendChild(time);
+
+    row.appendChild(bubble);
+    chatBody.appendChild(row);
+
+    scrollToBottom();
+  }
+
+  function addTyping() {
+    const row = document.createElement("div");
+    row.className = "message-row bot";
+    row.id = "typingIndicator";
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+
+    bubble.innerHTML = `
+      <div class="typing">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+    `;
+
+    row.appendChild(bubble);
+    chatBody.appendChild(row);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const typing = document.getElementById("typingIndicator");
+    if (typing) {
+      typing.remove();
+    }
+  }
+
+  function botReplyWithDelay(message, tag = "doctor", urgent = false, delay = 500) {
+    addTyping();
+
+    setTimeout(() => {
+      removeTyping();
+      addMessage(message, "bot", tag, urgent);
+    }, delay);
+  }
+
+  function escapeHTML(text) {
+    return text.replace(/[&<>"']/g, function(match) {
+      const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      };
+      return map[match];
+    });
+  }
+
+  function normalizeSymptom(text) {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "_")
+      .replace(/[^\w_]/g, "");
+  }
+
+  function extractAge(input) {
+    const match = input.match(/\d+/);
+    return match ? match[0] : "";
+  }
+
+  function extractSymptomsFromInput(input) {
+    let cleaned = input.toLowerCase();
+
+    cleaned = cleaned
+      .replace(/i have/g, "")
+      .replace(/i am having/g, "")
+      .replace(/i feel/g, "")
+      .replace(/my symptoms are/g, "")
+      .replace(/symptoms are/g, "")
+      .replace(/and/g, ",")
+      .replace(/\./g, ",")
+      .replace(/\n/g, ",");
+
+    let parts = cleaned
+      .split(",")
+      .map(item => normalizeSymptom(item))
+      .filter(item => item.length > 0);
+
+    parts = [...new Set(parts)];
+
+    return parts;
+  }
+
+  async function checkApiConnection() {
+    try {
+      const res = await fetch(`${API_BASE}/api/symptoms`);
+
+      if (!res.ok) {
+        throw new Error("API error");
+      }
+
+      const data = await res.json();
+      symptomVocabulary = data.symptoms || [];
+
+    } catch (error) {
+      console.log("API connection failed:", error);
+    }
+  }
+
+  function renderResults(data) {
+    if (!data.results || data.results.length === 0) {
+      addMessage(
+        `I could not find a possible match, ${getFirstName(patientName)}. Try typing symptoms like fever, cough, headache, sore throat.`,
+        "bot",
+        "doctor"
+      );
+      return;
+    }
+
+    let html = `
+      <p><strong>Patient:</strong> ${escapeHTML(patientName)}</p>
+      <p><strong>Age:</strong> ${escapeHTML(patientAge)}</p>
+    `;
+
+    data.results.forEach(condition => {
+      const confidence = condition.confidence
+        ? (condition.confidence * 100).toFixed(1)
+        : "0.0";
+
+      html += `
+        <div class="result-card ${condition.urgent ? "flagged" : ""}">
+          <div class="result-title">
+            <span>${condition.urgent ? "⚠️ " : ""}${condition.name}</span>
+            <span class="confidence">${confidence}%</span>
+          </div>
+          <p><span class="label">Possible home care:</span> ${condition.home_care}</p>
+          <p><span class="label">See a doctor if:</span> ${condition.see_doctor_if}</p>
+        </div>
+      `;
+    });
+
+    addMessage(
+      html,
+      "bot",
+      "possible matches — not a diagnosis",
+      data.any_urgent
+    );
+
+    if (data.disclaimer) {
+      addMessage(
+        escapeHTML(data.disclaimer),
+        "bot",
+        "medical reminder"
+      );
+    }
+
+    addMessage(
+      `${getFirstName(patientName)}, you can type more symptoms if you want to check again.`,
+      "bot",
+      "doctor"
+    );
+  }
+
+  async function predictSymptoms(userText) {
+    const symptoms = extractSymptomsFromInput(userText);
+
+    if (symptoms.length === 0) {
+      addMessage(
+        `I could not understand your symptoms, ${getFirstName(patientName)}. Please type like: fever, cough, headache.`,
+        "bot",
+        "doctor"
+      );
+      return;
+    }
+
+    sendBtn.disabled = true;
+    addTyping();
+
+    try {
+      const res = await fetch(`${API_BASE}/api/predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: patientName,
+          age: patientAge,
+          symptoms: symptoms
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error("API error " + res.status);
+      }
+
+      const data = await res.json();
+
+      removeTyping();
+
+      if (data.any_urgent) {
+        addMessage(
+          `${getFirstName(patientName)}, one or more symptoms may need prompt medical attention. Please read the flagged result carefully.`,
+          "bot",
+          "important",
+          true
+        );
+      }
+
+      renderResults(data);
+
+    } catch (error) {
+      removeTyping();
+
+      addMessage(
+        "Sorry, I could not reach the backend. Please check whether your Python API is running.",
+        "bot",
+        "connection error",
+        true
+      );
+
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  async function handleDoctorConversation() {
+    const userText = symptomInput.value.trim();
+
+    if (!userText) {
+      addMessage("Please type your answer first.", "bot", "doctor");
+      return;
+    }
+
+    addMessage(escapeHTML(userText), "user");
+
+    symptomInput.value = "";
+    symptomInput.style.height = "auto";
+
+    if (chatStep === "askName") {
+      patientName = userText;
+      const firstName = getFirstName(patientName);
+
+      chatStep = "askAge";
+      symptomInput.placeholder = "Type your age...";
+
+      botReplyWithDelay(
+        `Hello ${escapeHTML(firstName)} 👋\nTell me your age.`,
+        "doctor"
+      );
+
+      return;
+    }
+
+    if (chatStep === "askAge") {
+      const age = extractAge(userText);
+
+      if (!age) {
+        botReplyWithDelay(
+          `Please enter a valid age, ${escapeHTML(getFirstName(patientName))}. Example: 24`,
+          "doctor"
+        );
+        return;
+      }
+
+      patientAge = age;
+      chatStep = "askSymptoms";
+      symptomInput.placeholder = "Type symptoms e.g. fever, cough, headache";
+
+      botReplyWithDelay(
+        `Nice ${escapeHTML(getFirstName(patientName))}. Now tell me your symptoms.`,
+        "doctor"
+      );
+
+      return;
+    }
+
+    if (chatStep === "askSymptoms") {
+      await predictSymptoms(userText);
+    }
+  }
+
+  sendBtn.addEventListener("click", handleDoctorConversation);
+
+  symptomInput.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleDoctorConversation();
+    }
+  });
+
+  symptomInput.addEventListener("input", function() {
+    this.style.height = "auto";
+    this.style.height = this.scrollHeight + "px";
+  });
+
+  resetBtn.addEventListener("click", function() {
+    chatBody.innerHTML = "";
+
+    patientName = "";
+    patientAge = "";
+    chatStep = "askName";
+    symptomInput.placeholder = "Type your name...";
+
+    addMessage(
+      "Hello 👋 I am Dr. MediHint. Before we start, what is your name?",
+      "bot",
+      "doctor"
+    );
+  });
+
+  window.addEventListener("DOMContentLoaded", async function() {
+    addMessage(
+      "Hello 👋 I am Dr. MediHint. Before we start, what is your name?",
+      "bot",
+      "doctor"
+    );
+
+    symptomInput.placeholder = "Type your name...";
+
+    await checkApiConnection();
+  });
+</script>
+
+</body>
+</html>
